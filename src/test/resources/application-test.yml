@@ -1,0 +1,44 @@
+# =====================================================
+# Test Profile — H2 in-memory (replaces MySQL)
+# =====================================================
+spring:
+  datasource:
+    url: jdbc:h2:mem:plastic_waste_test_db;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE;MODE=MySQL
+    driver-class-name: org.h2.Driver
+    username: sa
+    password:
+
+  sql:
+    init:
+      mode: always          # run schema.sql to create tables
+      continue-on-error: true
+
+  jpa:
+    hibernate:
+      ddl-auto: create-drop
+    show-sql: false
+    properties:
+      hibernate:
+        dialect: org.hibernate.dialect.H2Dialect
+        format_sql: false
+    open-in-view: false
+
+  h2:
+    console:
+      enabled: false
+
+  # Disable Thymeleaf cache in tests
+  thymeleaf:
+    cache: false
+
+# Disable socket server during tests to avoid port conflicts
+alert:
+  socket:
+    enabled: false
+    port: 19090
+
+logging:
+  level:
+    com.plasticaudit: WARN
+    org.springframework.security: WARN
+    org.hibernate: WARN

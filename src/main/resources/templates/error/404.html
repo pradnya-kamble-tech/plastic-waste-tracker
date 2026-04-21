@@ -1,0 +1,24 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+
+<head th:replace="layout/base :: head('Page Not Found')"></head>
+
+<body>
+    <nav th:replace="layout/base :: navbar"></nav>
+    <main style="padding: 60px 40px; text-align: center;">
+        <div style="max-width: 600px; margin: 0 auto;">
+            <h1 style="font-size: 72px; color: #16a34a; margin: 0;">404</h1>
+            <h2 style="color: #374151;">Page Not Found</h2>
+            <p style="color: #6b7280;" th:text="${errorMsg} ?: 'The resource you are looking for does not exist.'">
+                The resource you are looking for does not exist.
+            </p>
+            <a href="/dashboard"
+                style="display: inline-block; margin-top: 20px; padding: 10px 24px; background: #16a34a; color: white; border-radius: 8px; text-decoration: none;">
+                ← Back to Dashboard
+            </a>
+        </div>
+    </main>
+    <footer th:replace="layout/base :: footer"></footer>
+</body>
+
+</html>

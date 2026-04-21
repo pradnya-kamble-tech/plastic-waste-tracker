@@ -1,0 +1,404 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Plastic Waste Audit & Reduction Tracker — SDG 12 & 14 Dashboard" />
+    <title>Dashboard | PlasticAudit</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet" />
+    <link rel="stylesheet" th:href="@{/css/style.css}" />
+</head>
+
+<body>
+
+    <!-- ── Navbar ────────────────────────────────────────────────── -->
+    <nav class="navbar">
+        <div class="nav-brand">
+            <span class="nav-icon">♻️</span>
+            <span class="nav-title">PlasticAudit</span>
+            <span class="nav-sdg">SDG 12 &amp; 14</span>
+        </div>
+        <ul class="nav-links">
+            <li><a th:href="@{/dashboard}" class="active">Dashboard</a></li>
+            <li><a th:href="@{/waste/list}">Waste Entries</a></li>
+            <li><a th:href="@{/reports}">Reports</a></li>
+            <li><a th:href="@{/charts}">📊 Charts</a></li>
+            <li sec:authorize="hasRole('ADMIN')"><a th:href="@{/admin/industries}">Admin</a></li>
+            <li sec:authorize="hasRole('ADMIN')"><a th:href="@{/admin/socket}">🔌 Socket</a></li>
+        </ul>
+        <div class="nav-user">
+            <span class="user-badge" sec:authorize="hasRole('ADMIN')">ADMIN</span>
+            <span class="user-badge industry-badge" sec:authorize="hasRole('INDUSTRY')">INDUSTRY</span>
+            <span class="username" sec:authentication="name">User</span>
+            <a th:href="@{/logout}" class="btn-logout">Logout</a>
+        </div>
+    </nav>
+
+    <main class="container">
+
+        <!-- Flash Messages -->
+        <div th:if="${successMsg}" class="alert alert-success" th:text="${successMsg}"></div>
+        <div th:if="${errorMsg}" class="alert alert-error" th:text="${errorMsg}"></div>
+
+        <!-- ── Page Header ──────────────────────────────────────────── -->
+        <div class="page-header">
+            <div>
+                <h1 class="page-title">
+                    <span th:if="${isAdmin}">📊 Regulator Dashboard</span>
+                    <span th:unless="${isAdmin}">🏭 Industry Dashboard</span>
+                </h1>
+                <p class="page-subtitle">Welcome back, <strong th:text="${currentUser}">User</strong></p>
+            </div>
+            <div class="header-actions">
+                <a th:href="@{/waste/new}" class="btn btn-primary">+ Log Waste Entry</a>
+                <a th:href="@{/reports/generate}" class="btn btn-secondary" sec:authorize="hasRole('ADMIN')">
+                    ⚡ Generate Reports
+                </a>
+            </div>
+        </div>
+
+        <!-- ══════════════════════════════════════════════════════════
+             SDG IMPACT DASHBOARD — Score Cards
+             ══════════════════════════════════════════════════════════ -->
+        <section class="section">
+            <h2 class="section-title">🌍 SDG Impact Dashboard</h2>
+
+            <div class="sdg-impact-grid">
+
+                <!-- SDG 12 Score Card -->
+                <div class="sdg-score-card sdg12">
+                    <div class="sdg-score-header">
+                        <span class="sdg-score-label">SDG 12 Score</span>
+                        <span class="sdg-goal-tag">Responsible Consumption</span>
+                    </div>
+                    <div class="sdg-score-value" th:text="${#numbers.formatDecimal(sdg.sdg12Score, 1, 1)}">0
+                        <span class="unit">/ 100</span>
+                    </div>
+                    <div class="sdg-score-desc">
+                        Based on <strong th:text="${sdgReductionRate + '%'}">0%</strong> waste reduction rate
+                        (target: 80%). Measures progress on responsible plastic production &amp; consumption.
+                    </div>
+                    <div class="gauge-wrap">
+                        <div class="gauge-labels"><span>0</span><span>Target: 80%</span><span>100</span></div>
+                        <div class="gauge-bar-bg">
+                            <div class="gauge-bar-fill" th:style="'width: ' + ${sdg.sdg12Score} + '%;'"></div>
+                        </div>
+                        <div class="gauge-target-line">Progress toward 80% reduction target</div>
+                    </div>
+                </div>
+
+                <!-- SDG 14 Score Card -->
+                <div class="sdg-score-card sdg14">
+                    <div class="sdg-score-header">
+                        <span class="sdg-score-label">SDG 14 Score</span>
+                        <span class="sdg-goal-tag">Life Below Water</span>
+                    </div>
+                    <div class="sdg-score-value" th:text="${#numbers.formatDecimal(sdg.sdg14Score, 1, 1)}">0
+                        <span class="unit">/ 100</span>
+                    </div>
+                    <div class="sdg-score-desc">
+                        Based on <strong th:text="${sdgRecyclingRatio + '%'}">0%</strong> recycling ratio
+                        (target: 50%). Measures plastic diverted from waterways &amp; ocean.
+                    </div>
+                    <div class="gauge-wrap">
+                        <div class="gauge-labels"><span>0</span><span>Target: 50%</span><span>100</span></div>
+                        <div class="gauge-bar-bg">
+                            <div class="gauge-bar-fill" th:style="'width: ' + ${sdg.sdg14Score} + '%;'"></div>
+                        </div>
+                        <div class="gauge-target-line">Progress toward 50% recycling target</div>
+                    </div>
+                </div>
+
+                <!-- Environmental Impact Score Card -->
+                <div class="sdg-score-card env">
+                    <div class="sdg-score-header">
+                        <span class="sdg-score-label">Environmental Score</span>
+                        <span class="sdg-goal-tag">Composite</span>
+                    </div>
+                    <div class="sdg-score-value" th:text="${#numbers.formatDecimal(sdg.environmentalScore, 1, 1)}">0
+                        <span class="unit">/ 100</span>
+                    </div>
+                    <div class="sdg-score-desc">
+                        Composite score (50% SDG 12 + 50% SDG 14). Reflects overall environmental
+                        compliance performance across all metrics.
+                    </div>
+                    <div class="gauge-wrap">
+                        <div class="gauge-labels"><span>0</span><span>Good: 60</span><span>100</span></div>
+                        <div class="gauge-bar-bg">
+                            <div class="gauge-bar-fill" th:style="'width: ' + ${sdg.environmentalScore} + '%;'"></div>
+                        </div>
+                        <div class="gauge-target-line">
+                            Grade:
+                            <span class="env-grade" th:text="${sdg.scoreGrade}"
+                                th:classappend="${sdg.scoreColorClass}">FAIR</span>
+                        </div>
+                    </div>
+                </div>
+
+            </div><!-- /.sdg-impact-grid -->
+        </section>
+
+        <!-- ══════════════════════════════════════════════════════════
+             SDG DETAIL PROGRESS BARS
+             ══════════════════════════════════════════════════════════ -->
+        <section class="section">
+            <div style="display:flex; gap:1.25rem; flex-wrap:wrap;">
+
+                <!-- Detailed Progress Panel -->
+                <div class="sdg-progress-panel" style="flex:2; min-width:280px;">
+                    <h3>📊 Detailed SDG Progress Indicators</h3>
+
+                    <!-- Reduction Rate -->
+                    <div class="progress-row">
+                        <div class="progress-row-header">
+                            <span class="progress-row-label">
+                                🌿 Waste Reduction Rate <small style="color:var(--gray-400)">(SDG 12)</small>
+                            </span>
+                            <span class="progress-row-value" th:text="${sdgReductionRate + '%'}">0%</span>
+                        </div>
+                        <div class="progress-bar-thin">
+                            <div class="progress-bar-thin-fill fill-amber"
+                                th:style="'width: ' + ${sdg.reductionRate} + '%;'"></div>
+                        </div>
+                    </div>
+
+                    <!-- Recycling Ratio -->
+                    <div class="progress-row">
+                        <div class="progress-row-header">
+                            <span class="progress-row-label">
+                                ♻️ Recycling Ratio <small style="color:var(--gray-400)">(SDG 14)</small>
+                            </span>
+                            <span class="progress-row-value" th:text="${sdgRecyclingRatio + '%'}">0%</span>
+                        </div>
+                        <div class="progress-bar-thin">
+                            <div class="progress-bar-thin-fill fill-teal"
+                                th:style="'width: ' + ${sdg.recyclingRatio} + '%;'"></div>
+                        </div>
+                    </div>
+
+                    <!-- Environmental Score -->
+                    <div class="progress-row">
+                        <div class="progress-row-header">
+                            <span class="progress-row-label">
+                                🌎 Environmental Score <small style="color:var(--gray-400)">(Composite)</small>
+                            </span>
+                            <span class="progress-row-value"
+                                th:text="${#numbers.formatDecimal(sdg.environmentalScore,1,1) + '/100'}">0/100</span>
+                        </div>
+                        <div class="progress-bar-thin">
+                            <div class="progress-bar-thin-fill fill-green"
+                                th:style="'width: ' + ${sdg.environmentalScore} + '%;'"></div>
+                        </div>
+                    </div>
+
+                    <!-- Leakage Rate -->
+                    <div class="progress-row">
+                        <div class="progress-row-header">
+                            <span class="progress-row-label">
+                                💧 Plastic Leakage Rate <small style="color:var(--gray-400)">(uncaptured)</small>
+                            </span>
+                            <span class="progress-row-value"
+                                th:text="${#numbers.formatDecimal(sdg.leakageRate,1,1) + '%'}">0%</span>
+                        </div>
+                        <div class="progress-bar-thin">
+                            <div class="progress-bar-thin-fill fill-red"
+                                th:style="'width: ' + ${sdg.leakageRate} + '%;'"></div>
+                        </div>
+                    </div>
+
+                </div><!-- /.sdg-progress-panel -->
+
+                <!-- Leakage Warning Card -->
+                <div style="flex:1; min-width:220px; display:flex; flex-direction:column; gap:1rem;">
+
+                    <div class="sdg-progress-panel" style="flex:1;">
+                        <h3>🏭 Waste Summary</h3>
+                        <div class="progress-row">
+                            <div class="progress-row-header">
+                                <span class="progress-row-label">Generated</span>
+                                <span class="progress-row-value" th:text="${sdgGenerated + ' kg'}">0 kg</span>
+                            </div>
+                        </div>
+                        <div class="progress-row">
+                            <div class="progress-row-header">
+                                <span class="progress-row-label">Recycled</span>
+                                <span class="progress-row-value" th:text="${sdgRecycled + ' kg'}">0 kg</span>
+                            </div>
+                        </div>
+                        <div class="progress-row">
+                            <div class="progress-row-header">
+                                <span class="progress-row-label">Eliminated</span>
+                                <span class="progress-row-value" th:text="${sdgEliminated + ' kg'}">0 kg</span>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Leakage Warning -->
+                    <div class="leakage-banner">
+                        <div class="leakage-icon">⚠️</div>
+                        <div class="leakage-body">
+                            <div class="leakage-title">Estimated Plastic Leakage</div>
+                            <div class="leakage-detail">Unrecycled &amp; non-eliminated plastic at risk of reaching
+                                waterways</div>
+                        </div>
+                        <div class="leakage-value"
+                            th:text="${#numbers.formatDecimal(sdg.plasticLeakageKg,1,0) + ' kg'}">0 kg</div>
+                    </div>
+
+                </div>
+
+            </div>
+        </section>
+
+        <!-- ── Original SDG Metrics Cards (Raw Data) ─────────────────── -->
+        <section class="section">
+            <h2 class="section-title">📈 Raw SDG Metrics</h2>
+            <div class="metrics-grid">
+                <div class="metric-card generated">
+                    <div class="metric-icon">🏭</div>
+                    <div class="metric-value" th:text="${sdgGenerated + ' kg'}">0 kg</div>
+                    <div class="metric-label">Total Plastic Generated</div>
+                    <div class="metric-sub">SDG 12 baseline</div>
+                </div>
+                <div class="metric-card recycled">
+                    <div class="metric-icon">♻️</div>
+                    <div class="metric-value" th:text="${sdgRecycled + ' kg'}">0 kg</div>
+                    <div class="metric-label">Total Recycled</div>
+                    <div class="metric-sub">SDG 12 recovery</div>
+                </div>
+                <div class="metric-card eliminated">
+                    <div class="metric-icon">🌊</div>
+                    <div class="metric-value" th:text="${sdgEliminated + ' kg'}">0 kg</div>
+                    <div class="metric-label">Total Eliminated</div>
+                    <div class="metric-sub">SDG 14 ocean protection</div>
+                </div>
+                <div class="metric-card reduction">
+                    <div class="metric-icon">📉</div>
+                    <div class="metric-value" th:text="${sdgReductionRate + '%'}">0%</div>
+                    <div class="metric-label">Overall Reduction Rate</div>
+                    <div class="metric-sub">SDG 12 &amp; 14 KPI</div>
+                </div>
+            </div>
+        </section>
+
+        <!-- ── Summary Stats ─────────────────────────────────────────── -->
+        <section class="section">
+            <div class="stats-row">
+                <div class="stat-box">
+                    <span class="stat-number" th:text="${totalIndustries}">0</span>
+                    <span class="stat-label">Registered Industries</span>
+                </div>
+                <div class="stat-box">
+                    <span class="stat-number" th:text="${totalEntries}">0</span>
+                    <span class="stat-label">Waste Entries Logged</span>
+                </div>
+            </div>
+        </section>
+
+        <!-- ── Admin: All Industries ─────────────────────────────────── -->
+        <section class="section" th:if="${isAdmin and allIndustries != null}">
+            <h2 class="section-title">🏭 Registered Industries</h2>
+            <div class="table-wrapper">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Industry</th>
+                            <th>Sector</th>
+                            <th>Location</th>
+                            <th>Target (kg/yr)</th>
+                            <th>Actions</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr th:each="ind : ${allIndustries}">
+                            <td><strong th:text="${ind.name}">-</strong></td>
+                            <td th:text="${ind.sector}">-</td>
+                            <td th:text="${ind.location}">-</td>
+                            <td
+                                th:text="${ind.annualPlasticTargetKg != null ? ind.annualPlasticTargetKg + ' kg' : 'Not set'}">
+                                -</td>
+                            <td>
+                                <a th:href="@{/waste/list}" class="btn-sm">View Entries</a>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- ── Industry: My Entries ──────────────────────────────────── -->
+        <section class="section" th:unless="${isAdmin}" th:if="${myEntries != null}">
+            <h2 class="section-title">📝 My Recent Waste Entries</h2>
+            <div th:if="${#lists.isEmpty(myEntries)}" class="empty-state">
+                <p>No waste entries yet. <a th:href="@{/waste/new}">Log your first entry →</a></p>
+            </div>
+            <div class="table-wrapper" th:unless="${#lists.isEmpty(myEntries)}">
+                <table class="data-table">
+                    <thead>
+                        <tr>
+                            <th>Date</th>
+                            <th>Generated (kg)</th>
+                            <th>Recycled (kg)</th>
+                            <th>Eliminated (kg)</th>
+                            <th>Reduction %</th>
+                            <th>Verified</th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        <tr th:each="e : ${myEntries}">
+                            <td th:text="${e.entryDate}">-</td>
+                            <td th:text="${e.plasticGeneratedKg}">0</td>
+                            <td th:text="${e.plasticRecycledKg}">0</td>
+                            <td th:text="${e.plasticEliminatedKg}">0</td>
+                            <td>
+                                <span class="badge badge-reduction"
+                                    th:text="${#numbers.formatDecimal(e.reductionRate, 1, 1) + '%'}">0%</span>
+                            </td>
+                            <td>
+                                <span th:if="${e.verified}" class="badge badge-success">✓ Yes</span>
+                                <span th:unless="${e.verified}" class="badge badge-warn">Pending</span>
+                            </td>
+                        </tr>
+                    </tbody>
+                </table>
+            </div>
+        </section>
+
+        <!-- ── SDG Justification ─────────────────────────────────────── -->
+        <section class="section">
+            <div class="sdg-justify-card">
+                <h2>🌏 SDG Alignment</h2>
+                <div class="sdg-justify-grid">
+                    <div class="sdg-item">
+                        <span class="sdg-badge-lg sdg12">SDG 12</span>
+                        <p><strong>Responsible Consumption &amp; Production</strong><br />
+                            Industries log and reduce single-use plastic generation, track recycling ratios,
+                            and set annual reduction targets — directly measuring responsible production patterns.
+                            Current reduction rate: <strong th:text="${sdgReductionRate + '%'}">0%</strong>.</p>
+                    </div>
+                    <div class="sdg-item">
+                        <span class="sdg-badge-lg sdg14">SDG 14</span>
+                        <p><strong>Life Below Water</strong><br />
+                            By quantifying plastic eliminated from waste streams before it reaches waterways,
+                            this system protects marine ecosystems. Estimated leakage:
+                            <strong th:text="${#numbers.formatDecimal(sdg.plasticLeakageKg,1,0) + ' kg'}">0 kg</strong>
+                            at risk of ocean entry.
+                        </p>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+    </main>
+
+    <footer class="footer">
+        <p>♻️ <strong>PlasticAudit</strong> — UN SDG 12 &amp; 14 | Spring Boot 3.x | Hibernate 6.x</p>
+    </footer>
+
+    <script th:src="@{/js/app.js}"></script>
+</body>
+
+</html>

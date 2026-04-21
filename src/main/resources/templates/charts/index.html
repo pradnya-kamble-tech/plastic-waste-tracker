@@ -1,0 +1,586 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:th="http://www.thymeleaf.org" xmlns:sec="http://www.thymeleaf.org/extras/spring-security">
+
+<head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content="Plastic Waste Data Visualisation — Chart.js" />
+    <title>Charts | PlasticAudit</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap"
+        rel="stylesheet" />
+    <link rel="stylesheet" th:href="@{/css/style.css}" />
+    <!-- Chart.js CDN -->
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.2/dist/chart.umd.min.js"></script>
+
+    <style>
+        /* ── Page wrapper ────────────────────────────────────────── */
+        .charts-page {
+            max-width: 1400px;
+            margin: 0 auto;
+            padding: 28px 20px 60px;
+        }
+
+        .charts-hero {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            margin-bottom: 32px;
+            flex-wrap: wrap;
+        }
+
+        .charts-hero h1 {
+            font-size: 1.85rem;
+            font-weight: 800;
+            background: linear-gradient(135deg, #16a34a, #0d9488);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin: 0;
+        }
+
+        .charts-hero p {
+            color: #6b7280;
+            margin: 4px 0 0;
+            font-size: 0.9rem;
+        }
+
+        /* ── KPI strip ───────────────────────────────────────────── */
+        .kpi-strip {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+            gap: 16px;
+            margin-bottom: 30px;
+        }
+
+        .kpi-card {
+            background: #fff;
+            border-radius: 16px;
+            padding: 22px 18px;
+            text-align: center;
+            box-shadow: 0 1px 10px rgba(0, 0, 0, .07);
+            border: 1px solid rgba(22, 163, 74, .12);
+            transition: transform .2s, box-shadow .2s;
+        }
+
+        .kpi-card:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 6px 20px rgba(22, 163, 74, .15);
+        }
+
+        .kpi-icon {
+            font-size: 2rem;
+            margin-bottom: 8px;
+        }
+
+        .kpi-value {
+            font-size: 1.55rem;
+            font-weight: 800;
+            color: #16a34a;
+            line-height: 1;
+        }
+
+        .kpi-label {
+            font-size: 0.74rem;
+            text-transform: uppercase;
+            letter-spacing: .07em;
+            color: #9ca3af;
+            margin-top: 6px;
+        }
+
+        /* ── Charts grid ─────────────────────────────────────────── */
+        .charts-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 22px;
+        }
+
+        .chart-card {
+            background: #fff;
+            border-radius: 20px;
+            padding: 24px 22px;
+            box-shadow: 0 2px 14px rgba(0, 0, 0, .07);
+            border: 1px solid rgba(0, 0, 0, .05);
+            animation: fadeUp .45s ease both;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .chart-card.wide {
+            grid-column: 1 / -1;
+        }
+
+        @keyframes fadeUp {
+            from {
+                opacity: 0;
+                transform: translateY(18px);
+            }
+
+            to {
+                opacity: 1;
+                transform: translateY(0);
+            }
+        }
+
+        .chart-card:nth-child(2) {
+            animation-delay: .08s;
+        }
+
+        .chart-card:nth-child(3) {
+            animation-delay: .16s;
+        }
+
+        .chart-card-header {
+            margin-bottom: 18px;
+        }
+
+        .chart-card-title {
+            font-size: 1rem;
+            font-weight: 700;
+            color: #111827;
+            margin: 0 0 3px;
+        }
+
+        .chart-card-sub {
+            font-size: .78rem;
+            color: #9ca3af;
+            margin: 0;
+        }
+
+        .chart-canvas-wrap {
+            position: relative;
+            flex: 1;
+            min-height: 280px;
+        }
+
+        /* ── Refresh button ──────────────────────────────────────── */
+        .refresh-btn {
+            background: linear-gradient(135deg, #16a34a, #059669);
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            padding: 9px 20px;
+            font-size: .84rem;
+            font-weight: 600;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            transition: opacity .2s, transform .15s;
+            white-space: nowrap;
+        }
+
+        .refresh-btn:hover {
+            opacity: .88;
+            transform: scale(1.03);
+        }
+
+        .refresh-btn:active {
+            transform: scale(.97);
+        }
+
+        /* ── Loading overlay ─────────────────────────────────────── */
+        #chartSpinner {
+            position: fixed;
+            inset: 0;
+            background: rgba(255, 255, 255, .65);
+            backdrop-filter: blur(5px);
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            z-index: 9999;
+            transition: opacity .3s;
+        }
+
+        #chartSpinner.hidden {
+            opacity: 0;
+            pointer-events: none;
+        }
+
+        .spin-ring {
+            width: 54px;
+            height: 54px;
+            border: 5px solid #d1fae5;
+            border-top-color: #16a34a;
+            border-radius: 50%;
+            animation: spin .75s linear infinite;
+        }
+
+        @keyframes spin {
+            to {
+                transform: rotate(360deg)
+            }
+        }
+
+        .spin-txt {
+            margin-top: 14px;
+            font-size: .88rem;
+            font-weight: 600;
+            color: #374151;
+        }
+
+        /* ── Empty state ─────────────────────────────────────────── */
+        .empty-state {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            height: 100%;
+            min-height: 200px;
+            color: #9ca3af;
+            gap: 8px;
+            font-size: .88rem;
+        }
+
+        .empty-state span {
+            font-size: 2.5rem;
+        }
+
+        /* ── Responsive ──────────────────────────────────────────── */
+        @media(max-width:900px) {
+            .charts-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .chart-card.wide {
+                grid-column: 1;
+            }
+        }
+    </style>
+</head>
+
+<body>
+
+    <!-- ── Loading overlay ──────────────────────────── -->
+    <div id="chartSpinner">
+        <div class="spin-ring"></div>
+        <p class="spin-txt">Fetching chart data…</p>
+    </div>
+
+    <!-- ── Navbar ────────────────────────────────────── -->
+    <nav class="navbar">
+        <div class="nav-brand">
+            <span class="nav-icon">♻️</span>
+            <span class="nav-title">PlasticAudit</span>
+            <span class="nav-sdg">SDG 12 &amp; 14</span>
+        </div>
+        <ul class="nav-links">
+            <li><a th:href="@{/dashboard}">Dashboard</a></li>
+            <li><a th:href="@{/waste/list}">Waste Entries</a></li>
+            <li><a th:href="@{/reports}">Reports</a></li>
+            <li><a th:href="@{/charts}" class="active">📊 Charts</a></li>
+            <li sec:authorize="hasRole('ADMIN')"><a th:href="@{/admin/industries}">Admin</a></li>
+            <li sec:authorize="hasRole('ADMIN')"><a th:href="@{/admin/socket}">🔌 Socket</a></li>
+        </ul>
+        <div class="nav-user">
+            <span class="user-badge" sec:authorize="hasRole('ADMIN')">ADMIN</span>
+            <span class="user-badge industry-badge" sec:authorize="hasRole('INDUSTRY')">INDUSTRY</span>
+            <span class="username" sec:authentication="name">User</span>
+            <a th:href="@{/logout}" class="btn-logout">Logout</a>
+        </div>
+    </nav>
+
+    <!-- ── Page content ──────────────────────────────── -->
+    <main class="container">
+        <div class="charts-page">
+
+            <!-- Hero row -->
+            <div class="charts-hero">
+                <div>
+                    <h1>📊 Data Visualisation</h1>
+                    <p>Real-time waste analytics — click <strong>Refresh</strong> to reload from server.</p>
+                </div>
+                <button class="refresh-btn" id="refreshBtn" onclick="loadCharts()">
+                    ↻ Refresh Data
+                </button>
+            </div>
+
+            <!-- KPI strip -->
+            <div class="kpi-strip">
+                <div class="kpi-card">
+                    <div class="kpi-icon">🏭</div>
+                    <div class="kpi-value" id="kpi-gen">—</div>
+                    <div class="kpi-label">Total Generated (kg)</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-icon">♻️</div>
+                    <div class="kpi-value" id="kpi-rec">—</div>
+                    <div class="kpi-label">Total Recycled (kg)</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-icon">🌿</div>
+                    <div class="kpi-value" id="kpi-elim">—</div>
+                    <div class="kpi-label">Total Eliminated (kg)</div>
+                </div>
+                <div class="kpi-card">
+                    <div class="kpi-icon">📈</div>
+                    <div class="kpi-value" id="kpi-ratio">—</div>
+                    <div class="kpi-label">Recycling Ratio</div>
+                </div>
+            </div>
+
+            <!-- Charts -->
+            <div class="charts-grid">
+
+                <!-- LINE — full width -->
+                <div class="chart-card wide">
+                    <div class="chart-card-header">
+                        <p class="chart-card-title">Monthly Waste Trend</p>
+                        <p class="chart-card-sub">Generated vs Recycled — all industries over time</p>
+                    </div>
+                    <div class="chart-canvas-wrap">
+                        <canvas id="lineChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- BAR -->
+                <div class="chart-card">
+                    <div class="chart-card-header">
+                        <p class="chart-card-title">Industry Comparison</p>
+                        <p class="chart-card-sub">Total generated &amp; recycled per industry</p>
+                    </div>
+                    <div class="chart-canvas-wrap">
+                        <canvas id="barChart"></canvas>
+                    </div>
+                </div>
+
+                <!-- PIE -->
+                <div class="chart-card">
+                    <div class="chart-card-header">
+                        <p class="chart-card-title">Waste Disposition</p>
+                        <p class="chart-card-sub">Global split: Recycled · Eliminated · Remaining</p>
+                    </div>
+                    <div class="chart-canvas-wrap">
+                        <canvas id="pieChart"></canvas>
+                    </div>
+                </div>
+
+            </div>
+        </div>
+    </main>
+
+    <!-- ── Footer ─────────────────────────────────────── -->
+    <footer class="footer">
+        <p>♻️ <strong>PlasticAudit</strong> — UN SDG 12 &amp; 14 | Built with Spring Boot 3.x · Chart.js</p>
+    </footer>
+
+    <!-- ── Chart.js script ───────────────────────────── -->
+    <script>
+        let lineInst, barInst, pieInst;
+
+        const GREEN = 'rgba(22,163,74,1)';
+        const GREEN_F = 'rgba(22,163,74,0.15)';
+        const TEAL = 'rgba(13,148,136,1)';
+        const TEAL_F = 'rgba(13,148,136,0.15)';
+
+        const PALETTE = [
+            '#16a34a', '#0d9488', '#0891b2', '#7c3aed',
+            '#db2777', '#ea580c', '#ca8a04', '#0f766e'
+        ];
+
+        function fmt(n) {
+            if (n == null) return '—';
+            return n >= 1000 ? (n / 1000).toFixed(1) + 'k' : n.toFixed(1);
+        }
+
+        function spinner(show) {
+            document.getElementById('chartSpinner').classList.toggle('hidden', !show);
+        }
+
+        function destroyAll() {
+            [lineInst, barInst, pieInst].forEach(c => c && c.destroy());
+            lineInst = barInst = pieInst = null;
+        }
+
+        function empty(canvasId, msg) {
+            const canvas = document.getElementById(canvasId);
+            canvas.style.display = 'none';
+            const d = document.createElement('div');
+            d.className = 'empty-state';
+            d.innerHTML = '<span>📭</span><p>' + msg + '</p>';
+            canvas.parentElement.appendChild(d);
+        }
+
+        // ── KPIs ─────────────────────────────────────────────────────
+        function renderKpis(d) {
+            document.getElementById('kpi-gen').textContent = fmt(d.globalGenerated) + ' kg';
+            document.getElementById('kpi-rec').textContent = fmt(d.globalRecycled) + ' kg';
+            document.getElementById('kpi-elim').textContent = fmt(d.globalEliminated) + ' kg';
+            const ratio = d.globalGenerated > 0
+                ? ((d.globalRecycled / d.globalGenerated) * 100).toFixed(1) + '%'
+                : '0.0%';
+            document.getElementById('kpi-ratio').textContent = ratio;
+        }
+
+        // ── Line chart ────────────────────────────────────────────────
+        function renderLine(d) {
+            if (!d.monthLabels || d.monthLabels.length === 0) {
+                empty('lineChart', 'No monthly data recorded yet');
+                return;
+            }
+            lineInst = new Chart(
+                document.getElementById('lineChart').getContext('2d'), {
+                type: 'line',
+                data: {
+                    labels: d.monthLabels,
+                    datasets: [
+                        {
+                            label: 'Generated (kg)',
+                            data: d.monthlyGenerated,
+                            borderColor: GREEN, backgroundColor: GREEN_F,
+                            borderWidth: 2.5, pointRadius: 4, pointHoverRadius: 7,
+                            tension: 0.35, fill: true
+                        },
+                        {
+                            label: 'Recycled (kg)',
+                            data: d.monthlyRecycled,
+                            borderColor: TEAL, backgroundColor: TEAL_F,
+                            borderWidth: 2.5, pointRadius: 4, pointHoverRadius: 7,
+                            tension: 0.35, fill: true
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    interaction: { mode: 'index', intersect: false },
+                    plugins: {
+                        legend: { position: 'top' },
+                        tooltip: { callbacks: { label: c => ' ' + c.dataset.label + ': ' + c.parsed.y.toFixed(1) + ' kg' } }
+                    },
+                    scales: {
+                        y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { callback: v => v + ' kg' } },
+                        x: { grid: { display: false } }
+                    }
+                }
+            });
+        }
+
+        // ── Bar chart ─────────────────────────────────────────────────
+        function renderBar(d) {
+            if (!d.industryNames || d.industryNames.length === 0) {
+                empty('barChart', 'No industry data available yet');
+                return;
+            }
+            const colors = d.industryNames.map((_, i) => PALETTE[i % PALETTE.length]);
+
+            barInst = new Chart(
+                document.getElementById('barChart').getContext('2d'), {
+                type: 'bar',
+                data: {
+                    labels: d.industryNames,
+                    datasets: [
+                        {
+                            label: 'Generated (kg)',
+                            data: d.industryGenerated,
+                            backgroundColor: colors.map(c => c + 'cc'),
+                            borderColor: colors, borderWidth: 1.5, borderRadius: 6
+                        },
+                        {
+                            label: 'Recycled (kg)',
+                            data: d.industryRecycled,
+                            backgroundColor: colors.map(c => c + '55'),
+                            borderColor: colors, borderWidth: 1.5, borderRadius: 6
+                        }
+                    ]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    plugins: {
+                        legend: { position: 'top' },
+                        tooltip: { callbacks: { label: c => ' ' + c.dataset.label + ': ' + c.parsed.y.toFixed(1) + ' kg' } }
+                    },
+                    scales: {
+                        y: { beginAtZero: true, grid: { color: 'rgba(0,0,0,0.05)' }, ticks: { callback: v => v + ' kg' } },
+                        x: {
+                            grid: { display: false },
+                            ticks: {
+                                maxRotation: 35,
+                                callback: function (val) {
+                                    const lbl = this.getLabelForValue(val);
+                                    return lbl.length > 13 ? lbl.slice(0, 12) + '…' : lbl;
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // ── Doughnut/Pie chart ────────────────────────────────────────
+        function renderPie(d) {
+            const total = d.globalGenerated || 0;
+            const recycled = d.globalRecycled || 0;
+            const elim = d.globalEliminated || 0;
+            const remaining = Math.max(0, total - recycled - elim);
+
+            if (total === 0) {
+                empty('pieChart', 'No waste data recorded yet');
+                return;
+            }
+
+            pieInst = new Chart(
+                document.getElementById('pieChart').getContext('2d'), {
+                type: 'doughnut',
+                data: {
+                    labels: ['Recycled', 'Eliminated', 'Remaining'],
+                    datasets: [{
+                        data: [recycled, elim, remaining],
+                        backgroundColor: ['#16a34a', '#0d9488', '#f87171'],
+                        borderColor: ['#fff', '#fff', '#fff'],
+                        borderWidth: 3,
+                        hoverOffset: 10
+                    }]
+                },
+                options: {
+                    responsive: true, maintainAspectRatio: false,
+                    cutout: '58%',
+                    plugins: {
+                        legend: { position: 'bottom' },
+                        tooltip: {
+                            callbacks: {
+                                label: c => {
+                                    const pct = total > 0
+                                        ? ((c.parsed / total) * 100).toFixed(1) + '%'
+                                        : '0.0%';
+                                    return ' ' + c.label + ': ' + c.parsed.toFixed(1) + ' kg (' + pct + ')';
+                                }
+                            }
+                        }
+                    }
+                }
+            });
+        }
+
+        // ── Main fetch + render ───────────────────────────────────────
+        async function loadCharts() {
+            spinner(true);
+            destroyAll();
+
+            // Clear any previous empty-state divs
+            document.querySelectorAll('.empty-state').forEach(el => el.remove());
+            document.querySelectorAll('#lineChart,#barChart,#pieChart')
+                .forEach(c => c.style.display = '');
+
+            try {
+                const res = await fetch('/api/waste/stats');
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+                const data = await res.json();
+
+                renderKpis(data);
+                renderLine(data);
+                renderBar(data);
+                renderPie(data);
+            } catch (err) {
+                console.error('Chart fetch failed:', err);
+            } finally {
+                spinner(false);
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', loadCharts);
+    </script>
+
+</body>
+
+</html>
